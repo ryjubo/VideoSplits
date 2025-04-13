@@ -1,8 +1,10 @@
 ﻿
+using AxWMPLib;
 using System.Diagnostics.Eventing.Reader;
 using System.Security;
 using System.Windows.Forms;
 using TrackTap.Models;
+using WMPLib;
 using static System.Net.Mime.MediaTypeNames;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.Window;
@@ -93,10 +95,22 @@ namespace TrackTap
             videoMovementPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
             videoMovementPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
             System.Drawing.Font movementFont = new System.Drawing.Font(FontFamily.GenericSansSerif, 20);
-            videoMovementPanel.Controls.Add(new Button() { Text = "<<", BackColor = Color.Gray, ForeColor = Color.White, Dock = DockStyle.Fill, Font = movementFont });
-            videoMovementPanel.Controls.Add(new Button() { Text = "<", BackColor = Color.LightGray, Dock = DockStyle.Fill, Font = movementFont });
-            videoMovementPanel.Controls.Add(new Button() { Text = ">", BackColor = Color.LightGray, Dock = DockStyle.Fill, Font = movementFont });
-            videoMovementPanel.Controls.Add(new Button() { Text = ">>", BackColor = Color.Gray, ForeColor = Color.White, Dock = DockStyle.Fill, Font = movementFont });
+
+            Button majorReverseButton = new Button() { Text = "<<", BackColor = Color.Gray, ForeColor = Color.White, Dock = DockStyle.Fill, Font = movementFont };
+            majorReverseButton.Click += this.MajorReverseButton_Pressed;
+            videoMovementPanel.Controls.Add(majorReverseButton);
+
+            Button minorReverseButton = new Button() { Text = "<", BackColor = Color.LightGray, Dock = DockStyle.Fill, Font = movementFont };
+            minorReverseButton.Click += this.MinorReverseButton_Pressed;
+            videoMovementPanel.Controls.Add(minorReverseButton);
+
+            Button minorForwardButton = new Button() { Text = ">", BackColor = Color.LightGray, Dock = DockStyle.Fill, Font = movementFont };
+            minorForwardButton.Click += this.MinorFowardButton_Pressed;
+            videoMovementPanel.Controls.Add(minorForwardButton);
+
+            Button majorForwardButton = new Button() { Text = ">>", BackColor = Color.Gray, ForeColor = Color.White, Dock = DockStyle.Fill, Font = movementFont };
+            majorForwardButton.Click += this.MajorForwardButton_Pressed;
+            videoMovementPanel.Controls.Add(majorForwardButton);
             mainPanel.Controls.Add(videoMovementPanel, column: 2, row: 3);
 
             //LOAD VIDEO BUTTON
@@ -107,7 +121,7 @@ namespace TrackTap
                 Dock = DockStyle.Fill,
                 BackColor = Color.Navy,
                 ForeColor = Color.White
-            };            
+            };
             this.LoadButton.Click += this.LoadButton_Click;
             mainPanel.Controls.Add(this.LoadButton, column: 0, row: 4);
             mainPanel.SetColumnSpan(this.LoadButton, 3);
@@ -135,17 +149,17 @@ namespace TrackTap
             if (openFileDialog.ShowDialog() == DialogResult.OK)
             {
                 MediaPlayerControl.URL = openFileDialog.FileName;
-                this.CurrentVideo = new Models.VideoInspection();
+                this.CurrentVideoInspection = new Models.VideoInspection();
             }
         }
 
         private void MarkPlacerButton_Click(object sender, EventArgs e)
         {
-            if (this.CurrentVideo == null)
+            if (this.CurrentVideoInspection == null)
             {
                 return;
             }
-            
+
             this.MediaPlayerControl.Ctlcontrols.pause();
             Form prompt = new Form()
             {
@@ -166,14 +180,14 @@ namespace TrackTap
 
             if (prompt.ShowDialog() == DialogResult.OK)
             {
-                this.CurrentVideo.AddMarkedPlacer(textBox.Text, GetCurrentMillisecondsOfVideo());
+                this.CurrentVideoInspection.AddMarkedPlacer(textBox.Text, GetCurrentMillisecondsOfVideo());
 
                 this.MarkedPlacerListView.Clear();
 
-                foreach (VideoInspection.MarkedPlacer thisMarkedPlacer in this.CurrentVideo.MarkedPlacers)
+                foreach (VideoInspection.MarkedPlacer thisMarkedPlacer in this.CurrentVideoInspection.MarkedPlacers)
                 {
                     this.MarkedPlacerListView.Items.Add(thisMarkedPlacer.IdentifyingInformation);
-                    this.MarkedPlacerListView.Items.Add($"   {TimeSpan.FromMilliseconds(thisMarkedPlacer.MarkedMillisecondsInVideo - this.CurrentVideo.StartTimeInMilliseconds)}");
+                    this.MarkedPlacerListView.Items.Add($"   {TimeSpan.FromMilliseconds(thisMarkedPlacer.MarkedMillisecondsInVideo - this.CurrentVideoInspection.StartTimeInMilliseconds)}");
                 }
             }
 
@@ -182,14 +196,39 @@ namespace TrackTap
 
         private void StartMarkButton_Click(object sender, EventArgs e)
         {
-            if (this.CurrentVideo == null)
+            if (this.CurrentVideoInspection == null)
             {
                 return;
             }
 
-            this.CurrentVideo.SetStartingMilliseconds(
+            this.CurrentVideoInspection.SetStartingMilliseconds(
                 GetCurrentMillisecondsOfVideo()
-            );          
+            );
+        }
+
+        private void MajorReverseButton_Pressed(object sender, EventArgs e)
+        {
+            AdvanceVideo(millisecondsToAdvance: 0 - (this.MediaPlayerControl.network.encodedFrameRate * 5));
+        }
+        private void MinorReverseButton_Pressed(object sender, EventArgs e)
+        {
+            AdvanceVideo(millisecondsToAdvance: 0 - (this.MediaPlayerControl.network.encodedFrameRate * 2));
+        }
+        private void MinorFowardButton_Pressed(object sender, EventArgs e)
+        {
+            AdvanceVideo(millisecondsToAdvance: (this.MediaPlayerControl.network.encodedFrameRate));
+        }
+        private void MajorForwardButton_Pressed(object sender, EventArgs e)
+        {
+            AdvanceVideo(millisecondsToAdvance: (this.MediaPlayerControl.network.encodedFrameRate * 5));
+        }
+        private void AdvanceVideo(double millisecondsToAdvance)
+        {
+            this.MediaPlayerControl.Ctlcontrols.pause();
+            double currentPosition = this.MediaPlayerControl.Ctlcontrols.currentPosition;            
+            this.MediaPlayerControl.Ctlcontrols.currentPosition = currentPosition + (millisecondsToAdvance / 1000);
+            ((WMPLib.IWMPControls2)this.MediaPlayerControl.Ctlcontrols).step(1);
+            //this.MediaPlayerControl.Ctlcontrols.pause();
         }
 
         private double GetCurrentMillisecondsOfVideo()

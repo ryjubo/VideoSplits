@@ -4,7 +4,7 @@ namespace TrackTap
 {
     public partial class MainForm : Form
     {
-        public VideoInspection CurrentVideo { get; set; }
+        public VideoInspection CurrentVideoInspection { get; set; }
 
         public MainForm()
         {
