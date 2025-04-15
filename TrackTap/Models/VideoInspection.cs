@@ -9,8 +9,15 @@ namespace TrackTap.Models
 {
     public class VideoInspection
     {
+        public string EventDescription { get; private set; }
         public double StartTimeInMilliseconds { get; private set; }
         public List<MarkedPlacer> MarkedPlacers { get; private set; } = new List<MarkedPlacer>();
+
+        public VideoInspection(string eventDescription)
+        {
+            EventDescription = eventDescription;
+        }
+
         public class MarkedPlacer
         {
             public string IdentifyingInformation { get; private set; }

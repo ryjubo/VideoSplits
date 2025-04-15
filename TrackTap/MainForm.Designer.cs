@@ -124,7 +124,19 @@ namespace TrackTap
             };
             this.LoadButton.Click += this.LoadButton_Click;
             mainPanel.Controls.Add(this.LoadButton, column: 0, row: 4);
-            mainPanel.SetColumnSpan(this.LoadButton, 3);
+            mainPanel.SetColumnSpan(this.LoadButton, 2);
+
+            //PRINT TO FILE
+            this.PrintToFileButton = new Button()
+            {
+                Text = "Print To File",
+                Font = new System.Drawing.Font(FontFamily.GenericSansSerif, 20f),
+                Dock = DockStyle.Fill,
+                BackColor = Color.CornflowerBlue,
+                ForeColor = Color.White
+            };
+            this.PrintToFileButton.Click += this.PrintToFileButton_Click;
+            mainPanel.Controls.Add(this.PrintToFileButton, column: 2, row: 4);            
 
             //PLACER LIST VIEW TABLE
             mainPanel.Controls.Add(this.MarkedPlacerListView, column: 3, row: 0);
@@ -149,10 +161,47 @@ namespace TrackTap
             if (openFileDialog.ShowDialog() == DialogResult.OK)
             {
                 MediaPlayerControl.URL = openFileDialog.FileName;
-                this.CurrentVideoInspection = new Models.VideoInspection();
+                this.MediaPlayerControl.Ctlcontrols.pause();
+
+                Form prompt = new Form()
+                {
+                    Width = 500,
+                    Height = 150,
+                    FormBorderStyle = FormBorderStyle.FixedDialog,
+                    Text = "What event is this?",
+                    StartPosition = FormStartPosition.CenterScreen
+                };
+                Label textLabel = new Label() { Left = 50, Top = 20, Text = "" };
+                TextBox textBox = new TextBox() { Left = 50, Top = 50, Width = 400 };
+                Button confirmation = new Button() { Text = "Ok", Left = 350, Width = 100, Top = 70, DialogResult = DialogResult.OK };
+                confirmation.Click += (sender, e) => { prompt.Close(); };
+                prompt.Controls.Add(textBox);
+                prompt.Controls.Add(confirmation);
+                prompt.Controls.Add(textLabel);
+                prompt.AcceptButton = confirmation;
+                this.MediaPlayerControl.Ctlcontrols.stop();
+                if (prompt.ShowDialog() == DialogResult.OK)
+                {
+                    this.CurrentVideoInspection = new Models.VideoInspection(eventDescription: textBox.Text);
+                }
             }
         }
+        private void PrintToFileButton_Click(object sender, EventArgs e)
+        {
+            string fileName = $"{this.CurrentVideoInspection.EventDescription}_{DateTime.Now.ToString("yyyy_MM_ddTHH_mm")}.txt";
 
+            File.Create(fileName).Close();
+            using (StreamWriter sw = File.AppendText(fileName))
+            {
+                sw.WriteLine(this.CurrentVideoInspection.EventDescription);
+
+                foreach (VideoInspection.MarkedPlacer thisMarkedPlacer in this.CurrentVideoInspection.MarkedPlacers)
+                {
+                    sw.WriteLine($"  {thisMarkedPlacer.IdentifyingInformation}");
+                    sw.WriteLine($"    {TimeSpan.FromMilliseconds(thisMarkedPlacer.MarkedMillisecondsInVideo - this.CurrentVideoInspection.StartTimeInMilliseconds)}");
+                }                
+            }
+        }
         private void MarkPlacerButton_Click(object sender, EventArgs e)
         {
             if (this.CurrentVideoInspection == null)
@@ -184,10 +233,12 @@ namespace TrackTap
 
                 this.MarkedPlacerListView.Clear();
 
+                this.MarkedPlacerListView.Items.Add(this.CurrentVideoInspection.EventDescription);
+
                 foreach (VideoInspection.MarkedPlacer thisMarkedPlacer in this.CurrentVideoInspection.MarkedPlacers)
                 {
-                    this.MarkedPlacerListView.Items.Add(thisMarkedPlacer.IdentifyingInformation);
-                    this.MarkedPlacerListView.Items.Add($"   {TimeSpan.FromMilliseconds(thisMarkedPlacer.MarkedMillisecondsInVideo - this.CurrentVideoInspection.StartTimeInMilliseconds)}");
+                    this.MarkedPlacerListView.Items.Add($"  {thisMarkedPlacer.IdentifyingInformation}");
+                    this.MarkedPlacerListView.Items.Add($"    {TimeSpan.FromMilliseconds(thisMarkedPlacer.MarkedMillisecondsInVideo - this.CurrentVideoInspection.StartTimeInMilliseconds)}");
                 }
             }
 
@@ -240,6 +291,7 @@ namespace TrackTap
         private Button LoadButton;
         private Button StartMarkButton;
         private Button MarkPlacerButton;
+        private Button PrintToFileButton;
         private ListView MarkedPlacerListView = new ListView()
         {
             Dock = DockStyle.Fill,
