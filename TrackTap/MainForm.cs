@@ -13,8 +13,7 @@ namespace TrackTap
             InitializeComponent();
 
             _libVLC = new LibVLC();
-            _mp = new LibVLCSharp.Shared.MediaPlayer(_libVLC);
-            _videoView.MediaPlayer = _mp;
+            _videoView.MediaPlayer = new LibVLCSharp.Shared.MediaPlayer(_libVLC);
             _videoView.Dock = DockStyle.Fill;
         }
     }

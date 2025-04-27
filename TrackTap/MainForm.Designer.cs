@@ -22,7 +22,6 @@ namespace TrackTap
             if (disposing && (components != null))
             {
                 components.Dispose();
-                this._mp?.Dispose();
                 this._libVLC?.Dispose();
             }
             base.Dispose(disposing);
@@ -190,7 +189,7 @@ namespace TrackTap
                 prompt.Controls.Add(textLabel);
                 prompt.AcceptButton = confirmation;
                 
-                _mp.Stop();
+                _videoView.MediaPlayer.Pause();
 
                 if (prompt.ShowDialog() == DialogResult.OK)
                 {
@@ -288,9 +287,11 @@ namespace TrackTap
         }
         private void AdvanceVideo(int advanceTotal)
         {
-            float totalToAdvance = (float)(advanceTotal / _mp.Length);
+            _videoView.MediaPlayer.Pause();
 
-            _videoView.MediaPlayer.Position += _videoView.MediaPlayer.Position + totalToAdvance;
+            _videoView.MediaPlayer.Position += (float)(advanceTotal / _videoView.MediaPlayer.Length);
+
+            _videoView.MediaPlayer.Pause();
         }
 
         private double GetCurrentMillisecondsOfVideo()
@@ -299,7 +300,7 @@ namespace TrackTap
         }
         private LibVLCSharp.WinForms.VideoView _videoView;
         private LibVLCSharp.Shared.LibVLC _libVLC;
-        public LibVLCSharp.Shared.MediaPlayer _mp;
+        
         private Button LoadButton;
         private Button StartMarkButton;
         private Button MarkPlacerButton;
@@ -312,13 +313,10 @@ namespace TrackTap
 
         private void Form1_Load(object sender, EventArgs e)
         {
-            _libVLC = new LibVLCSharp.Shared.LibVLC();
-            _mp = new LibVLCSharp.Shared.MediaPlayer(_libVLC);
+            
         }
         private void MainForm_FormClosed(object sender, FormClosedEventArgs e)
         {
-            _mp.Stop();
-            _mp.Dispose();
             _libVLC.Dispose();
         }
     }
