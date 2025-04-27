@@ -1,15 +1,5 @@
-﻿
-using AxWMPLib;
-using LibVLCSharp.Shared;
-using LibVLCSharp.WinForms;
-using System.Diagnostics.Eventing.Reader;
-using System.Security;
-using System.Windows.Forms;
+﻿using LibVLCSharp.Shared;
 using TrackTap.Models;
-using WMPLib;
-using static System.Net.Mime.MediaTypeNames;
-using static System.Runtime.InteropServices.JavaScript.JSType;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.Window;
 
 namespace TrackTap
 {
@@ -185,9 +175,7 @@ namespace TrackTap
                 var media = new Media(_libVLC, new Uri(openFileDialog.FileName));
 
                 _videoView.MediaPlayer.Media = media;
-                _videoView.MediaPlayer.Play();
-                _videoView.MediaPlayer.Pause();
-
+                
                 media.Dispose();
 
                 Form prompt = new Form()
@@ -210,6 +198,9 @@ namespace TrackTap
                 if (prompt.ShowDialog() == DialogResult.OK)
                 {
                     this.CurrentVideoInspection = new Models.VideoInspection(eventDescription: textBox.Text);
+
+                    _videoView.MediaPlayer.Play();
+                    this.SetVideoToPaused();
                 }
             }
         }
@@ -310,10 +301,12 @@ namespace TrackTap
         {
             this.SetVideoToPaused();
 
-            for (int advanceCounter = 0; advanceCounter < rateFactor; advanceCounter++)
-            {
-                _videoView.MediaPlayer.NextFrame();
-            }
+            float oneFramePercentageOfASecond = (1 / _videoView.MediaPlayer.Fps);
+            float totalSecondsOfVideo = (_videoView.MediaPlayer.Length / 1000);
+
+            float framePercentage = (oneFramePercentageOfASecond / totalSecondsOfVideo) * rateFactor;
+
+            _videoView.MediaPlayer.Position += framePercentage;
         }
 
         private void ReverseVideo(int rateFactor)
