@@ -1,7 +1,5 @@
 ﻿
 using AxWMPLib;
-using LibVLCSharp.Shared;
-using LibVLCSharp.WinForms;
 using System.Diagnostics.Eventing.Reader;
 using System.Security;
 using System.Windows.Forms;
@@ -22,12 +20,9 @@ namespace TrackTap
             if (disposing && (components != null))
             {
                 components.Dispose();
-                this._mp?.Dispose();
-                this._libVLC?.Dispose();
             }
             base.Dispose(disposing);
         }
-
 
         private void InitializeComponent()
         {
@@ -48,19 +43,21 @@ namespace TrackTap
             mainPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 20));
             mainPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 20));
 
-            this.Load += Form1_Load;
-            FormClosed += MainForm_FormClosed;
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
+            MediaPlayerControl = new AxWMPLib.AxWindowsMediaPlayer();
 
-            mainPanel.SuspendLayout();
-            this.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)MediaPlayerControl).BeginInit();
+            SuspendLayout();
 
-            this._videoView = new LibVLCSharp.WinForms.VideoView();
-            ((System.ComponentModel.ISupportInitialize)(this._videoView)).BeginInit();
-            
-            mainPanel.Controls.Add(this._videoView, row: 0, column: 0);
-            mainPanel.SetRowSpan(this._videoView, 3);
-            mainPanel.SetColumnSpan(this._videoView, 3);
-            
+            MediaPlayerControl.Enabled = true;
+            MediaPlayerControl.Name = "axWindowsMediaPlayer1";
+            MediaPlayerControl.OcxState = (AxHost.State)resources.GetObject("axWindowsMediaPlayer1.OcxState");
+            MediaPlayerControl.Dock = DockStyle.Fill;
+
+            mainPanel.Controls.Add(this.MediaPlayerControl, row: 0, column: 0);
+            mainPanel.SetRowSpan(this.MediaPlayerControl, 3);
+            mainPanel.SetColumnSpan(this.MediaPlayerControl, 3);
+
             //START MARK BUTTON
             this.StartMarkButton = new Button()
             {
@@ -152,16 +149,10 @@ namespace TrackTap
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1024, 768);
             this.Controls.Add(mainPanel);
-            mainPanel.ResumeLayout(false);
-            this.ResumeLayout(true);
-
             Name = "MainForm";
             Text = "Track Tap";
-
-            ((System.ComponentModel.ISupportInitialize)(this._videoView)).EndInit();
-            this.ResumeLayout(false);
-            
-            this.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)MediaPlayerControl).EndInit();
+            ResumeLayout(false);
         }
 
         private void LoadButton_Click(object sender, EventArgs e)
@@ -169,9 +160,8 @@ namespace TrackTap
             OpenFileDialog openFileDialog = new OpenFileDialog();
             if (openFileDialog.ShowDialog() == DialogResult.OK)
             {
-                var media = new Media(_libVLC, new Uri(openFileDialog.FileName));
-                _videoView.MediaPlayer.Play(media);
-                media.Dispose();
+                MediaPlayerControl.URL = openFileDialog.FileName;
+                this.MediaPlayerControl.Ctlcontrols.pause();
 
                 Form prompt = new Form()
                 {
@@ -189,9 +179,7 @@ namespace TrackTap
                 prompt.Controls.Add(confirmation);
                 prompt.Controls.Add(textLabel);
                 prompt.AcceptButton = confirmation;
-                
-                _mp.Stop();
-
+                this.MediaPlayerControl.Ctlcontrols.stop();
                 if (prompt.ShowDialog() == DialogResult.OK)
                 {
                     this.CurrentVideoInspection = new Models.VideoInspection(eventDescription: textBox.Text);
@@ -221,8 +209,7 @@ namespace TrackTap
                 return;
             }
 
-            _videoView.MediaPlayer.Pause();
-
+            this.MediaPlayerControl.Ctlcontrols.pause();
             Form prompt = new Form()
             {
                 Width = 500,
@@ -255,7 +242,7 @@ namespace TrackTap
                 }
             }
 
-            _videoView.MediaPlayer.Pause();
+            this.MediaPlayerControl.Ctlcontrols.pause();
         }
 
         private void StartMarkButton_Click(object sender, EventArgs e)
@@ -272,34 +259,35 @@ namespace TrackTap
 
         private void MajorReverseButton_Pressed(object sender, EventArgs e)
         {
-            AdvanceVideo(advanceTotal: -100);
+            AdvanceVideo(millisecondsToAdvance: 0 - (this.MediaPlayerControl.network.encodedFrameRate * 5));
         }
         private void MinorReverseButton_Pressed(object sender, EventArgs e)
         {
-            AdvanceVideo(advanceTotal: -10);
+            AdvanceVideo(millisecondsToAdvance: 0 - (this.MediaPlayerControl.network.encodedFrameRate * 2));
         }
         private void MinorFowardButton_Pressed(object sender, EventArgs e)
         {
-            AdvanceVideo(advanceTotal: 10);
+            AdvanceVideo(millisecondsToAdvance: (this.MediaPlayerControl.network.encodedFrameRate));
         }
         private void MajorForwardButton_Pressed(object sender, EventArgs e)
         {
-            AdvanceVideo(advanceTotal: 100);
+            AdvanceVideo(millisecondsToAdvance: (this.MediaPlayerControl.network.encodedFrameRate * 5));
         }
-        private void AdvanceVideo(int advanceTotal)
+        private void AdvanceVideo(double millisecondsToAdvance)
         {
-            float totalToAdvance = (float)(advanceTotal / _mp.Length);
-
-            _videoView.MediaPlayer.Position += _videoView.MediaPlayer.Position + totalToAdvance;
+            this.MediaPlayerControl.Ctlcontrols.pause();
+            double currentPosition = this.MediaPlayerControl.Ctlcontrols.currentPosition;            
+            this.MediaPlayerControl.Ctlcontrols.currentPosition = currentPosition + (millisecondsToAdvance / 1000);
+            ((WMPLib.IWMPControls2)this.MediaPlayerControl.Ctlcontrols).step(1);
+            //this.MediaPlayerControl.Ctlcontrols.pause();
         }
 
         private double GetCurrentMillisecondsOfVideo()
         {
-            return _videoView.MediaPlayer.Position * _videoView.MediaPlayer.Length;
+            return this.MediaPlayerControl.Ctlcontrols.currentPosition * 1000;
         }
-        private LibVLCSharp.WinForms.VideoView _videoView;
-        private LibVLCSharp.Shared.LibVLC _libVLC;
-        public LibVLCSharp.Shared.MediaPlayer _mp;
+
+        private AxWMPLib.AxWindowsMediaPlayer MediaPlayerControl;
         private Button LoadButton;
         private Button StartMarkButton;
         private Button MarkPlacerButton;
@@ -309,17 +297,5 @@ namespace TrackTap
             Dock = DockStyle.Fill,
             View = View.List
         };
-
-        private void Form1_Load(object sender, EventArgs e)
-        {
-            _libVLC = new LibVLCSharp.Shared.LibVLC();
-            _mp = new LibVLCSharp.Shared.MediaPlayer(_libVLC);
-        }
-        private void MainForm_FormClosed(object sender, FormClosedEventArgs e)
-        {
-            _mp.Stop();
-            _mp.Dispose();
-            _libVLC.Dispose();
-        }
     }
 }
