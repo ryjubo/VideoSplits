@@ -47,6 +47,7 @@ namespace TrackTap
             mainPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 20));
             mainPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 20));
 
+            this.Load += Form1_Load;
             FormClosed += MainForm_FormClosed;
 
             mainPanel.SuspendLayout();
@@ -87,7 +88,7 @@ namespace TrackTap
             TableLayoutPanel videoMovementPanel = new TableLayoutPanel()
             {
                 BackColor = System.Drawing.Color.Transparent,
-                RowCount = 2,
+                RowCount = 1,
                 ColumnCount = 4,
                 Dock = DockStyle.Fill
             };
@@ -95,31 +96,23 @@ namespace TrackTap
             videoMovementPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
             videoMovementPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
             videoMovementPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
-            videoMovementPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
-            videoMovementPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
             System.Drawing.Font movementFont = new System.Drawing.Font(FontFamily.GenericSansSerif, 20);
 
             Button majorReverseButton = new Button() { Text = "<<", BackColor = Color.Gray, ForeColor = Color.White, Dock = DockStyle.Fill, Font = movementFont };
             majorReverseButton.Click += this.MajorReverseButton_Pressed;
-            videoMovementPanel.Controls.Add(majorReverseButton, row: 0, column: 0);
+            videoMovementPanel.Controls.Add(majorReverseButton);
 
             Button minorReverseButton = new Button() { Text = "<", BackColor = Color.LightGray, Dock = DockStyle.Fill, Font = movementFont };
             minorReverseButton.Click += this.MinorReverseButton_Pressed;
-            videoMovementPanel.Controls.Add(minorReverseButton, row: 0, column: 1);
+            videoMovementPanel.Controls.Add(minorReverseButton);
 
             Button minorForwardButton = new Button() { Text = ">", BackColor = Color.LightGray, Dock = DockStyle.Fill, Font = movementFont };
             minorForwardButton.Click += this.MinorFowardButton_Pressed;
-            videoMovementPanel.Controls.Add(minorForwardButton, row: 0, column: 2);
+            videoMovementPanel.Controls.Add(minorForwardButton);
 
             Button majorForwardButton = new Button() { Text = ">>", BackColor = Color.Gray, ForeColor = Color.White, Dock = DockStyle.Fill, Font = movementFont };
             majorForwardButton.Click += this.MajorForwardButton_Pressed;
-            videoMovementPanel.Controls.Add(majorForwardButton, row: 0, column: 3);
-
-            Button pausePlayButton = new Button() { Text = "Pause / Play", BackColor = Color.Salmon, ForeColor = Color.Black, Dock = DockStyle.Fill, Font = movementFont };
-            pausePlayButton.Click += this.PauseButton_Pressed;
-            videoMovementPanel.Controls.Add(pausePlayButton, row: 1, column: 0);
-            mainPanel.SetColumnSpan(pausePlayButton, 4);
-
+            videoMovementPanel.Controls.Add(majorForwardButton);
             mainPanel.Controls.Add(videoMovementPanel, column: 2, row: 3);
 
             //LOAD VIDEO BUTTON
@@ -169,25 +162,14 @@ namespace TrackTap
             
             this.PerformLayout();
         }
-        private void PauseButton_Pressed(object sender, EventArgs e)
-        {
-            _videoView.MediaPlayer.Pause();
-        }
-        private void PlayButton_Pressed(object sender, EventArgs e)
-        {
-            _videoView.MediaPlayer.Play();
-        }
+
         private void LoadButton_Click(object sender, EventArgs e)
         {
             OpenFileDialog openFileDialog = new OpenFileDialog();
             if (openFileDialog.ShowDialog() == DialogResult.OK)
             {
                 var media = new Media(_libVLC, new Uri(openFileDialog.FileName));
-
-                _videoView.MediaPlayer.Media = media;
-                _videoView.MediaPlayer.Play();
-                _videoView.MediaPlayer.Pause();
-
+                _videoView.MediaPlayer.Play(media);
                 media.Dispose();
 
                 Form prompt = new Form()
@@ -206,6 +188,8 @@ namespace TrackTap
                 prompt.Controls.Add(confirmation);
                 prompt.Controls.Add(textLabel);
                 prompt.AcceptButton = confirmation;
+                
+                _videoView.MediaPlayer.Pause();
 
                 if (prompt.ShowDialog() == DialogResult.OK)
                 {
@@ -236,7 +220,7 @@ namespace TrackTap
                 return;
             }
 
-            this.SetVideoToPaused();
+            _videoView.MediaPlayer.Pause();
 
             Form prompt = new Form()
             {
@@ -270,12 +254,7 @@ namespace TrackTap
                 }
             }
 
-            this.SetVideoToPaused();
-        }
-
-        private void SetVideoToPaused()
-        {
-            if (_videoView.MediaPlayer.IsPlaying) { _videoView.MediaPlayer.Pause(); }
+            _videoView.MediaPlayer.Pause();
         }
 
         private void StartMarkButton_Click(object sender, EventArgs e)
@@ -292,40 +271,27 @@ namespace TrackTap
 
         private void MajorReverseButton_Pressed(object sender, EventArgs e)
         {
-            ReverseVideo(rateFactor: 5);
+            AdvanceVideo(advanceTotal: -100);
         }
         private void MinorReverseButton_Pressed(object sender, EventArgs e)
         {
-            ReverseVideo(rateFactor: 1);
+            AdvanceVideo(advanceTotal: -10);
         }
         private void MinorFowardButton_Pressed(object sender, EventArgs e)
         {
-            AdvanceVideo(rateFactor: 1);
+            AdvanceVideo(advanceTotal: 10);
         }
         private void MajorForwardButton_Pressed(object sender, EventArgs e)
         {
-            AdvanceVideo(rateFactor: 5);
+            AdvanceVideo(advanceTotal: 100);
         }
-        private void AdvanceVideo(int rateFactor)
+        private void AdvanceVideo(int advanceTotal)
         {
-            this.SetVideoToPaused();
+            _videoView.MediaPlayer.Pause();
 
-            for (int advanceCounter = 0; advanceCounter < rateFactor; advanceCounter++)
-            {
-                _videoView.MediaPlayer.NextFrame();
-            }
-        }
+            _videoView.MediaPlayer.Position += (float)(advanceTotal / _videoView.MediaPlayer.Length);
 
-        private void ReverseVideo(int rateFactor)
-        {
-            this.SetVideoToPaused();
-
-            float oneFramePercentageOfASecond = (1 / _videoView.MediaPlayer.Fps);
-            float totalSecondsOfVideo = (_videoView.MediaPlayer.Length / 1000);
-
-            float framePercentage = (oneFramePercentageOfASecond / totalSecondsOfVideo) * rateFactor;
-
-            _videoView.MediaPlayer.Position -= framePercentage;
+            _videoView.MediaPlayer.Pause();
         }
 
         private double GetCurrentMillisecondsOfVideo()
@@ -344,6 +310,11 @@ namespace TrackTap
             Dock = DockStyle.Fill,
             View = View.List
         };
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            
+        }
         private void MainForm_FormClosed(object sender, FormClosedEventArgs e)
         {
             _libVLC.Dispose();
