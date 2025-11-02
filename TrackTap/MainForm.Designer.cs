@@ -26,6 +26,7 @@ namespace TrackTap
 
         private void InitializeComponent()
         {
+            this.Icon = new Icon("Images/applicationIcon.ico");
             TableLayoutPanel mainPanel = new TableLayoutPanel()
             {
                 BackColor = System.Drawing.Color.AliceBlue,
@@ -168,16 +169,25 @@ namespace TrackTap
                     Width = 500,
                     Height = 150,
                     FormBorderStyle = FormBorderStyle.FixedDialog,
-                    Text = "What event is this?",
+                    Text = "Enter an event description:",
                     StartPosition = FormStartPosition.CenterScreen
                 };
-                Label textLabel = new Label() { Left = 50, Top = 20, Text = "" };
-                TextBox textBox = new TextBox() { Left = 50, Top = 50, Width = 400 };
-                Button confirmation = new Button() { Text = "Ok", Left = 350, Width = 100, Top = 70, DialogResult = DialogResult.OK };
+
+                TableLayoutPanel promptPanel = new TableLayoutPanel()
+                {
+                    RowCount = 1,
+                    ColumnCount = 2,
+                    Dock = DockStyle.Fill
+                };
+                
+                TextBox textBox = new TextBox() { Left = 50, Top = 50, Width = 400, Padding = new Padding(50) };
+                Button confirmation = new Button() { Text = "Ok", DialogResult = DialogResult.OK };
                 confirmation.Click += (sender, e) => { prompt.Close(); };
-                prompt.Controls.Add(textBox);
-                prompt.Controls.Add(confirmation);
-                prompt.Controls.Add(textLabel);
+                
+                promptPanel.Controls.Add(textBox);
+                promptPanel.Controls.Add(confirmation);
+
+                prompt.Controls.Add(promptPanel); 
                 prompt.AcceptButton = confirmation;
                 this.MediaPlayerControl.Ctlcontrols.stop();
                 if (prompt.ShowDialog() == DialogResult.OK)
@@ -188,18 +198,33 @@ namespace TrackTap
         }
         private void PrintToFileButton_Click(object sender, EventArgs e)
         {
-            string fileName = $"{this.CurrentVideoInspection.EventDescription}_{DateTime.Now.ToString("yyyy_MM_ddTHH_mm")}.txt";
-
-            File.Create(fileName).Close();
-            using (StreamWriter sw = File.AppendText(fileName))
+            if(this.CurrentVideoInspection == null)
             {
-                sw.WriteLine(this.CurrentVideoInspection.EventDescription);
+                return;
+            }
 
-                foreach (VideoInspection.MarkedPlacer thisMarkedPlacer in this.CurrentVideoInspection.MarkedPlacers)
+            SaveFileDialog saveFileDialog = new SaveFileDialog();
+
+            saveFileDialog.Title = "Select location to save result";            
+            saveFileDialog.FileName = $"{this.CurrentVideoInspection.EventDescription}_{DateTime.Now.ToString("yyyy_MM_ddThh_mm_ss")}.txt";
+            saveFileDialog.FilterIndex = 2;
+            saveFileDialog.RestoreDirectory = true;
+
+            if (saveFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                string chosenFileName = saveFileDialog.FileName;
+
+                File.Create(chosenFileName).Close();
+                using (StreamWriter sw = File.AppendText(chosenFileName))
                 {
-                    sw.WriteLine($"  {thisMarkedPlacer.IdentifyingInformation}");
-                    sw.WriteLine($"    {TimeSpan.FromMilliseconds(thisMarkedPlacer.MarkedMillisecondsInVideo - this.CurrentVideoInspection.StartTimeInMilliseconds)}");
-                }                
+                    sw.WriteLine(this.CurrentVideoInspection.EventDescription);
+
+                    foreach (VideoInspection.MarkedPlacer thisMarkedPlacer in this.CurrentVideoInspection.MarkedPlacers)
+                    {
+                        sw.WriteLine($"  {thisMarkedPlacer.IdentifyingInformation}");
+                        sw.WriteLine($"    {TimeSpan.FromMilliseconds(thisMarkedPlacer.MarkedMillisecondsInVideo - this.CurrentVideoInspection.StartTimeInMilliseconds)}");
+                    }
+                }
             }
         }
         private void MarkPlacerButton_Click(object sender, EventArgs e)
@@ -210,26 +235,40 @@ namespace TrackTap
             }
 
             this.MediaPlayerControl.Ctlcontrols.pause();
+
             Form prompt = new Form()
             {
                 Width = 500,
                 Height = 150,
                 FormBorderStyle = FormBorderStyle.FixedDialog,
-                Text = "Add identifying information for this marked placer",
+                Text = "Enter info on placer",
                 StartPosition = FormStartPosition.CenterScreen
             };
-            Label textLabel = new Label() { Left = 50, Top = 20, Text = "" };
+            
             TextBox textBox = new TextBox() { Left = 50, Top = 50, Width = 400 };
-            Button confirmation = new Button() { Text = "Ok", Left = 350, Width = 100, Top = 70, DialogResult = DialogResult.OK };
+            Button confirmation = new Button() { Text = "Ok", DialogResult = DialogResult.OK };
             confirmation.Click += (sender, e) => { prompt.Close(); };
-            prompt.Controls.Add(textBox);
-            prompt.Controls.Add(confirmation);
-            prompt.Controls.Add(textLabel);
+
+            TableLayoutPanel promptPanel = new TableLayoutPanel()
+            {
+                RowCount = 1,
+                ColumnCount = 2,
+                Dock = DockStyle.Fill
+            };
+            promptPanel.Controls.Add(textBox);
+            promptPanel.Controls.Add(confirmation);
+
+            prompt.Controls.Add(promptPanel);
+
             prompt.AcceptButton = confirmation;
 
             if (prompt.ShowDialog() == DialogResult.OK)
             {
-                this.CurrentVideoInspection.AddMarkedPlacer(textBox.Text, GetCurrentMillisecondsOfVideo());
+                string placerDescription = string.IsNullOrWhiteSpace(textBox.Text) ? 
+                    $"Place {this.CurrentVideoInspection.MarkedPlacers.Count + 1}" : 
+                    textBox.Text;
+
+                this.CurrentVideoInspection.AddMarkedPlacer(placerDescription, GetCurrentMillisecondsOfVideo());
 
                 this.MarkedPlacerListView.Clear();
 
